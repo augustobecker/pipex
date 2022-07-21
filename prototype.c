@@ -10,6 +10,17 @@
 # define RED				"\033[0;31m"
 # define RESET 				"\033[0m"
 
+
+typedef struct s_pipex
+{
+	int	pid;
+	int	fd_in;
+	int	fd_out;
+	char 	**first_command;
+	char 	**secnd_command;
+	char	**paths;
+}	t_pipex;
+
 char *ft_read_pipe(int fd);
 int	ft_error_msg(char *message);
 char *ft_read_infile(char *filename);
