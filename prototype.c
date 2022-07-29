@@ -44,7 +44,7 @@ int main(int argc, char **argv, char **envp)
 	ft_init_commands(pipex, argv[2], argv[3]);
 	pipe(pipex->fd_pipe);
 	child_process(pipex, envp);
-	return (pipex->return_value);
+	return (0);
 }
 
 void	ft_error_msg(char *message)
@@ -57,8 +57,6 @@ void ft_check_command_line_arguments(int argc)
 {
 	if (argc < 5)
 		ft_error_msg("Some arguments are missing");
-	else if (argc > 5)
-		ft_error_msg("Too many arguments. It should be only five");
 }
 
 void ft_init_files(t_pipex *pipex, char *infile, char *outfile)
@@ -107,7 +105,6 @@ void child_process(t_pipex *pipex, char **envp)
 {
 	int 	pid;
 
-	pipex->return_value = 0;
 	pid = fork();
 	if (pid == 0)
 	{
