@@ -15,111 +15,162 @@
 # define IN 				0
 # define OUT	 			1
 
-typedef struct s_pipex
+
+typedef struct s_data
 {
 	int		fd_pipe[2];
+	int		fd_next_pipe[2];
 	int		fd_infile;
 	int		fd_outfile;
-	char 	**first_command;
-	char 	**secnd_command;
-	char	**paths;
-}	t_pipex;
+	int 		atual_command;
+	int		nbr_of_commands;
+	char 		***command;
+	char		**paths;
+}	t_data;
 
-void	ft_error_msg(char *message);
-void	ft_check_command_line_arguments(int argc);
-void	ft_init_files(t_pipex *pipex, char *infile, char *outfile);
-void	ft_find_paths(t_pipex *pipex, char **envp);
-void	ft_init_commands(t_pipex *pipex, char *first_cmd, char *secnd_cmd);
-void	execute_command(t_pipex *pipex, char **cmd_and_flags, char **envp);
-void	child_process(t_pipex *pipex, char **envp);
+void	error_msg(char *message);
+void	check_command_line_arguments(int argc);
+void	init_files(t_data *data, char *infile, char *outfile);
+void	find_paths(t_data *data, char **envp);
+void	init_commands(t_data *data, char **argv);
+void	execute_command(t_data *data, char **cmd_and_flags, char **envp);
+
+void	run_first_process(t_data *data, char **envp);
+void	execute_last_command(t_data *data, int fd_in, char **envp);
+void	run_pipes(t_data *data, int fd_in, char **envp);
 
 int main(int argc, char **argv, char **envp)
 {
-	t_pipex	*pipex;
+	t_data *data;
 
-	pipex = malloc(sizeof(t_pipex));
-	ft_check_command_line_arguments(argc);
-	ft_init_files(pipex, argv[1], argv[4]);
-	ft_find_paths(pipex, envp);
-	ft_init_commands(pipex, argv[2], argv[3]);
-	pipe(pipex->fd_pipe);
-	child_process(pipex, envp);
+	data = malloc(sizeof(t_data));
+	data->nbr_of_commands = argc - 3;
+	check_command_line_arguments(argc);
+	init_files(data, argv[1], argv[argc - 1]);
+	find_paths(data, envp);
+	init_commands(data, argv);
+	run_first_process(data, envp);
 	return (0);
 }
 
-void	ft_error_msg(char *message)
+void	error_msg(char *message)
 {
 	ft_printf(RED"Error\n%s\n"RESET, message);
 	exit (EXIT_FAILURE);
 }
 
-void ft_check_command_line_arguments(int argc)
+void check_command_line_arguments(int argc)
 {
 	if (argc < 5)
-		ft_error_msg("Some arguments are missing");
+		error_msg("Some arguments are missing");
 }
 
-void ft_init_files(t_pipex *pipex, char *infile, char *outfile)
+void init_files(t_data *data, char *infile, char *outfile)
 {
-	pipex->fd_infile = open(infile, O_RDONLY);
-	if (pipex->fd_infile == -1)
+	data->fd_infile = open(infile, O_RDONLY);
+	if (data->fd_infile == -1)
 		ft_printf(GREY"pipex: %s: No such file or directory", infile);
-	pipex->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0777);
-	if (pipex->fd_outfile == -1)
-		ft_error_msg("outfile: something unexpected happened");
+	data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+	if (data->fd_outfile == -1)
+		error_msg("outfile: something unexpected happened");
 }
 
-void ft_find_paths(t_pipex *pipex, char **envp)
+void find_paths(t_data *data, char **envp)
 {
 	int		i;
 
 	i = 0;
 	while (!ft_strnstr(envp[i], "PATH=", ft_strlen("PATH=")))
 		i++;
-	pipex->paths = ft_split(envp[i] + ft_strlen("PATH="), ':');
-	pipex->paths[0] = ft_substr(pipex->paths[0], ft_strlen("PATH="), ft_strlen(pipex->paths[0]));
+	data->paths = ft_split(envp[i] + ft_strlen("PATH="), ':');
+	data->paths[0] = ft_substr(data->paths[0], ft_strlen("PATH="), ft_strlen(data->paths[0]));
 }
 
-void	ft_init_commands(t_pipex *pipex, char *first_cmd, char *secnd_cmd)
+void	init_commands(t_data *data, char **argv)
 {
-	first_cmd = ft_strjoin("/", first_cmd);
-	secnd_cmd = ft_strjoin("/", secnd_cmd);
-	pipex->first_command = ft_split(first_cmd, ' '); // tratamento para espaços
-	pipex->secnd_command = ft_split(secnd_cmd, ' '); // tratamento para espaços
+	int arg;
+	int i;
+
+	i = 0;
+	arg = 2;
+	data->command = malloc(sizeof(char ***) * (data->nbr_of_commands + 1));
+	while (i < data->nbr_of_commands)
+	{
+		data->command[i] = ft_split(argv[arg], ' '); // falta o tratamento para espaços
+		data->command[i][0] = ft_strjoin("/", data->command[i][0]);
+		i++;
+		arg++;
+	}
 }
 
-void execute_command(t_pipex *pipex, char **cmd_and_flags, char **envp)
+void execute_command(t_data *data, char **cmd_and_flags, char **envp)
 {
 	char	*command;
 	int 	i;
 
 	i = 0;
-	while (pipex->paths[i])
+	while (data->paths[i])
 	{
-		command = ft_strjoin(pipex->paths[i++], cmd_and_flags[0]);
+		command = ft_strjoin(data->paths[i++], cmd_and_flags[0]);
 		execve(command, &cmd_and_flags[0], envp);
 	}
 }
 
-void child_process(t_pipex *pipex, char **envp)
+void	run_first_process(t_data *data, char **envp)
 {
+	int		fd_pipe[2];
 	int 	pid;
 
+	pipe(fd_pipe);
 	pid = fork();
 	if (pid == 0)
 	{
-		close(pipex->fd_pipe[IN]);
-		dup2(pipex->fd_infile, 0);
-		dup2(pipex->fd_pipe[1], 1);
-		execute_command(pipex, pipex->first_command, envp);
+		data->atual_command = 0;
+		close(fd_pipe[IN]);
+		dup2(data->fd_infile, STDIN_FILENO);
+		dup2(fd_pipe[OUT], STDOUT_FILENO);
+		execute_command(data, data->command[0], envp);
 	}
 	else
 	{
 		waitpid(pid, NULL, 0);
-		close(pipex->fd_pipe[1]);
-		dup2(pipex->fd_pipe[0], 0);
-		dup2(pipex->fd_outfile, 1);
-		execute_command(pipex, pipex->secnd_command, envp);
-		exit (127);
+		close(fd_pipe[1]);
+		if (data->nbr_of_commands == 2)
+			execute_last_command(data, fd_pipe[0], envp);
+		run_pipes(data, fd_pipe[0], envp);
 	}
+}
+
+void	run_pipes(t_data *data, int fd_in, char **envp)
+{
+	int fd_new_pipe[2];
+	int pid;
+
+	data->atual_command++;
+	pipe(fd_new_pipe);
+	pid = fork();
+	if (pid == 0)
+	{
+		close(fd_new_pipe[IN]);
+		dup2(fd_in, STDIN_FILENO);
+		dup2(fd_new_pipe[OUT], STDOUT_FILENO);
+		execute_command(data, data->command[data->atual_command], envp);
+	}
+	else
+	{
+		waitpid(pid, NULL, 0);
+		close(fd_in);
+		close(fd_new_pipe[OUT]);
+		if (data->atual_command == data->nbr_of_commands - 2)
+			execute_last_command(data, fd_new_pipe[0], envp);
+		run_pipes(data, fd_new_pipe[0], envp);
+	}
+}
+
+void	execute_last_command(t_data *data, int fd_in, char **envp)
+{
+	dup2(fd_in, STDIN_FILENO);
+	dup2(data->fd_outfile, STDOUT_FILENO);
+	execute_command(data, data->command[data->nbr_of_commands - 1], envp);
+	exit (127);
 }
