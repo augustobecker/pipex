@@ -20,6 +20,9 @@ CC 		= clang
 
 FLAGS 		= -Wall -Werror -Wextra
 
+LIB_PATH 	= ../includes
+INCLUDE		= -I ${LIB_PATH}
+
 REMOVE 		= rm -f
 
 SRCS 		= ft_isalpha.c 			\
@@ -101,7 +104,7 @@ bonus:		${NAME} ${BONUS_OBJS}
 
 .c.o:
 		@echo "\n$(NAME): $(GREEN)object files were created$(RESET)"
-		${CC} ${FLAGS} -c $< -o ${<:.c=.o}
+		${CC} ${FLAGS} -c $< -o ${<:.c=.o} ${INCLUDE}
 
 clean:
 		@echo "\n$(NAME): $(RED)object files were deleted$(RESET)"
