@@ -1,8 +1,10 @@
-#include <stdio.h>
 #include <unistd.h>
-#include "../prototype/libraries/Libft/libft.h"
-#include <sys/wait.h>
-#include <fcntl.h>
+#include "../../prototype/libraries/Libft/libft.h"
+# include <unistd.h>
+# include <stdlib.h>
+# include <sys/wait.h>
+# include <fcntl.h>
+# include <string.h>
 
 # define CYAN				"\033[0;96m"
 # define GREY 				"\033[0;90m"
@@ -10,135 +12,117 @@
 # define RED				"\033[0;31m"
 # define RESET 				"\033[0m"
 
+# define IN 				0
+# define OUT	 			1
 
 typedef struct s_pipex
 {
-	int	pid;
-	int	fd_in;
-	int	fd_out;
+	int		fd_pipe[2];
+	int		fd_infile;
+	int		fd_outfile;
 	char 	**first_command;
 	char 	**secnd_command;
 	char	**paths;
 }	t_pipex;
 
-char *ft_read_pipe(int fd);
-int	ft_error_msg(char *message);
-char *ft_read_infile(char *filename);
+void	ft_error_msg(char *message);
+void	ft_check_command_line_arguments(int argc);
+void	ft_init_files(t_pipex *pipex, char *infile, char *outfile);
+void	ft_find_paths(t_pipex *pipex, char **envp);
+void	ft_init_commands(t_pipex *pipex, char *first_cmd, char *secnd_cmd);
+void	execute_command(t_pipex *pipex, char **cmd_and_flags, char **envp);
+void	child_process(t_pipex *pipex, char **envp);
 
 int main(int argc, char **argv, char **envp)
 {
-	char 	**possible_path;
-	char 	*paths;
-	char 	*cmd;
-	char	*cmd2;
-	int 	i;
-	int 	exec;
-	int		pid;
-	int		pid_2;
-	int		fd_out;
-	int		fd_out_dup;
-	char	*outfile;
-	int 	pipe_fd[2];
-	char 	*flags;
+	t_pipex	*pipex;
 
-	char **first_command;
-	char **secnd_command;
-	char *infile;
-	int fd;
-	char *file;
+	pipex = malloc(sizeof(t_pipex));
+	ft_check_command_line_arguments(argc);
+	ft_init_files(pipex, argv[1], argv[4]);
+	ft_find_paths(pipex, envp);
+	ft_init_commands(pipex, argv[2], argv[3]);
+	pipe(pipex->fd_pipe);
+	child_process(pipex, envp);
+	return (pipex->return_value);
+}
 
+void	ft_error_msg(char *message)
+{
+	ft_printf(RED"Error\n%s\n"RESET, message);
+	exit (EXIT_FAILURE);
+}
+
+void ft_check_command_line_arguments(int argc)
+{
 	if (argc < 5)
-		ft_error_msg("some arguments are missing");
+		ft_error_msg("Some arguments are missing");
 	else if (argc > 5)
-		ft_error_msg("Too many arguments \n       It should be only five");
-	file = ft_read_infile(argv[1]);
-	first_command = ft_split(argv[2], ' ');
-	secnd_command = ft_split(argv[3], ' ');
+		ft_error_msg("Too many arguments. It should be only five");
+}
+
+void ft_init_files(t_pipex *pipex, char *infile, char *outfile)
+{
+	pipex->fd_infile = open(infile, O_RDONLY);
+	if (pipex->fd_infile == -1)
+		ft_printf(GREY"pipex: %s: No such file or directory", infile);
+	pipex->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+	if (pipex->fd_outfile == -1)
+		ft_error_msg("outfile: something unexpected happened");
+}
+
+void ft_find_paths(t_pipex *pipex, char **envp)
+{
+	int		i;
+
 	i = 0;
-	while (!ft_strnstr(envp[i], "PATH=", sizeof(envp[i])))
+	while (!ft_strnstr(envp[i], "PATH=", ft_strlen("PATH=")))
 		i++;
-	paths = ft_strdup(envp[i]);
-	possible_path = ft_split(paths, ':');
+	pipex->paths = ft_split(envp[i] + ft_strlen("PATH="), ':');
+	pipex->paths[0] = ft_substr(pipex->paths[0], ft_strlen("PATH="), ft_strlen(pipex->paths[0]));
+}
+
+void	ft_init_commands(t_pipex *pipex, char *first_cmd, char *secnd_cmd)
+{
+	first_cmd = ft_strjoin("/", first_cmd);
+	secnd_cmd = ft_strjoin("/", secnd_cmd);
+	pipex->first_command = ft_split(first_cmd, ' '); // tratamento para espaços
+	pipex->secnd_command = ft_split(secnd_cmd, ' '); // tratamento para espaços
+}
+
+void execute_command(t_pipex *pipex, char **cmd_and_flags, char **envp)
+{
+	char	*command;
+	int 	i;
+
 	i = 0;
-	possible_path[0] = ft_substr(possible_path[0], ft_strlen("PATH="), ft_strlen(possible_path[0]));
-	while (possible_path[i])
+	while (pipex->paths[i])
 	{
-		possible_path[i] = ft_strjoin(possible_path[i], "/");
-		i++;
+		command = ft_strjoin(pipex->paths[i++], cmd_and_flags[0]);
+		execve(command, &cmd_and_flags[0], envp);
 	}
-	pipe(pipe_fd);
+}
+
+void child_process(t_pipex *pipex, char **envp)
+{
+	int 	pid;
+
+	pipex->return_value = 0;
 	pid = fork();
 	if (pid == 0)
 	{
-		close(pipe_fd[0]);
-		dup2(pipe_fd[1], 1);
-		dup2(fd, 0);
-		i = 0;
-		while (possible_path[i])
-		{
-			cmd = ft_strjoin(possible_path[i++], first_command[0]);
-			execve(cmd, &first_command[0], envp);
-		}
+		close(pipex->fd_pipe[IN]);
+		dup2(pipex->fd_infile, 0);
+		dup2(pipex->fd_pipe[1], 1);
+		execute_command(pipex, pipex->first_command, envp);
 	}
 	else
 	{
-		wait(NULL);
-		ft_printf("DONE\n");
-		close(pipe_fd[1]);
-		fd_out = open(argv[4 ], O_WRONLY | O_CREAT, 0777);
-		dup2(fd_out, 1);
-		dup2(pipe_fd[0], 0);
-		i = 0;
-		while (possible_path[i])
-		{
-			cmd2 = ft_strjoin(possible_path[i++], secnd_command[0]);
-			execve(cmd2, &secnd_command[0] , envp);
-		}
-		close(fd_out);
+		waitpid(pid, NULL, 0);
+		close(pipex->fd_pipe[1]);
+		dup2(pipex->fd_pipe[0], 0);
+		dup2(pipex->fd_outfile, 1);
+		execute_command(pipex, pipex->secnd_command, envp);
+		exit (127);
 	}
-}
-
-char *ft_read_infile(char *filename)
-{
-	char	*file_temp;
-	char	*line_temp;
-	int		fd;
-
-	fd = open(filename, O_RDONLY);
-	if (fd == -1)
-		ft_error_msg("infile: No such file or directory");
-	file_temp = ft_strdup("");
-	while (1)
-	{
-		line_temp = get_next_line(fd);
-		if (line_temp == NULL)
-			break;
-		file_temp = ft_strjoin(file_temp, line_temp);
-		free(line_temp);
-	}
-	return (file_temp);
-}
-
-
-char *ft_read_pipe(int fd)
-{
-	char	*file_temp;
-	char	*line_temp;
-
-	file_temp = ft_strdup("");
-	while (1)
-	{
-		line_temp = get_next_line(fd);
-		if (line_temp == NULL)
-			break;
-		file_temp = ft_strjoin(file_temp, line_temp);
-		free(line_temp);
-	}
-	return (file_temp);
-}
-
-int	ft_error_msg(char *message)
-{
-	ft_printf(GREY"pipex: %s\n"RESET, message);
-	exit (EXIT_FAILURE);
 }
