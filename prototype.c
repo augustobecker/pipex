@@ -6,76 +6,97 @@
 # include <fcntl.h>
 # include <string.h>
 
-# define CYAN				"\033[0;96m"
 # define GREY 				"\033[0;90m"
-# define GREEN				"\033[0;32m"
 # define RED				"\033[0;31m"
 # define RESET 				"\033[0m"
 
 # define IN 				0
 # define OUT	 			1
 
+typedef enum e_bool
+{
+	false,
+	true
+}	t_bool;
 
 typedef struct s_data
 {
-	int		fd_pipe[2];
-	int		fd_next_pipe[2];
 	int		fd_infile;
 	int		fd_outfile;
-	int 		atual_command;
+	int 	atual_command;
 	int		nbr_of_commands;
-	char 		***command;
-	char		**paths;
+	t_bool	here_doc;
+	char 	***command;
+	char	**paths;
+	char	*limiter;
 }	t_data;
 
-void	error_msg(char *message);
-void	check_command_line_arguments(int argc);
+void	initialize(t_data *data, int argc, char **argv, char **envp);
+void	read_here_doc(t_data *data, char *here_doc, char *limiter, char **envp);
 void	init_files(t_data *data, char *infile, char *outfile);
-void	find_paths(t_data *data, char **envp);
+void	find_paths_to_command(t_data *data, char **envp)
 void	init_commands(t_data *data, char **argv);
+char	**split_command(char *command);
 void	execute_command(t_data *data, char **cmd_and_flags, char **envp);
+int		fork_and_exec_first_cmd(t_data *data, char **envp);
+void	fork_and_exec_middle_cmd(t_data *data, int fd_in, char **envp);
+void	exec_last_command(t_data *data, int fd_in, char **envp);
+void	command_not_found_message(char *command);
+void	error(char *message);
 
-void	run_first_process(t_data *data, char **envp);
-void	execute_last_command(t_data *data, int fd_in, char **envp);
-void	run_pipes(t_data *data, int fd_in, char **envp);
 
 int main(int argc, char **argv, char **envp)
 {
 	t_data *data;
+	int		fd_pipe_input;
 
 	data = malloc(sizeof(t_data));
-	data->nbr_of_commands = argc - 3;
-	check_command_line_arguments(argc);
-	init_files(data, argv[1], argv[argc - 1]);
-	find_paths(data, envp);
-	init_commands(data, argv);
-	run_first_process(data, envp);
+	initialize(data, argc, argv, envp);
+	fd_pipe_input = fork_and_exec_first_cmd(data, envp);
+	if (data->nbr_of_commands == 2)
+			exec_last_command(data, fd_pipe_input, envp);
+	fork_and_exec_middle_cmd(data, fd_pipe_input, envp);
 	return (0);
 }
 
-void	error_msg(char *message)
+void initialize(t_data *data, int argc, char **argv, char **envp)
+{
+	if (argc < 5)
+		error("Some arguments are missing");
+	if (!ft_strncmp(argv[1], "here_doc", ft_strlen("here_doc")))
+		read_here_doc(data, argv[1], argv[2], envp);
+	data->nbr_of_commands = argc - 3;
+	init_files(data, argv[1], argv[argc - 1]);
+	find_paths_to_command(data, envp);
+	init_commands(data, argv);
+}
+
+void	error(char *message)
 {
 	ft_printf(RED"Error\n%s\n"RESET, message);
 	exit (EXIT_FAILURE);
 }
 
-void check_command_line_arguments(int argc)
-{
-	if (argc < 5)
-		error_msg("Some arguments are missing");
-}
-
 void init_files(t_data *data, char *infile, char *outfile)
 {
-	data->fd_infile = open(infile, O_RDONLY);
-	if (data->fd_infile == -1)
-		ft_printf(GREY"pipex: %s: No such file or directory", infile);
-	data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0777);
-	if (data->fd_outfile == -1)
-		error_msg("outfile: something unexpected happened");
+	if (data->here_doc == true)
+	{
+		data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_APPEND, 0777);
+		if (data->fd_outfile == -1)
+			error("outfile: something unexpected happened");
+	}
+	else
+	{
+		data->fd_infile = open(infile, O_RDONLY);
+		if (data->fd_infile == -1)
+			ft_printf(GREY"pipex: %s: No such file or directory", infile);
+		data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+		if (data->fd_outfile == -1)
+			error("outfile: something unexpected happened");
+	}
 }
 
-void find_paths(t_data *data, char **envp)
+void find_paths_to_command(t_data *data, char **envp)
 {
 	int		i;
 
@@ -96,14 +117,14 @@ void	init_commands(t_data *data, char **argv)
 	data->command = malloc(sizeof(char ***) * (data->nbr_of_commands + 1));
 	while (i < data->nbr_of_commands)
 	{
-		data->command[i] = ft_split(argv[arg], ' '); // falta o tratamento para espaços
+		data->command[i] = split_command(argv[arg]);
 		data->command[i][0] = ft_strjoin("/", data->command[i][0]);
 		i++;
 		arg++;
 	}
 }
 
-void execute_command(t_data *data, char **cmd_and_flags, char **envp)
+void	execute_command(t_data *data, char **cmd_and_flags, char **envp)
 {
 	char	*command;
 	int 	i;
@@ -114,9 +135,10 @@ void execute_command(t_data *data, char **cmd_and_flags, char **envp)
 		command = ft_strjoin(data->paths[i++], cmd_and_flags[0]);
 		execve(command, &cmd_and_flags[0], envp);
 	}
+	command_not_found_message(&cmd_and_flags[0][1]);
 }
 
-void	run_first_process(t_data *data, char **envp)
+int	fork_and_exec_first_cmd(t_data *data, char **envp)
 {
 	int		fd_pipe[2];
 	int 	pid;
@@ -135,13 +157,11 @@ void	run_first_process(t_data *data, char **envp)
 	{
 		waitpid(pid, NULL, 0);
 		close(fd_pipe[1]);
-		if (data->nbr_of_commands == 2)
-			execute_last_command(data, fd_pipe[0], envp);
-		run_pipes(data, fd_pipe[0], envp);
+		return (fd_pipe[IN]);
 	}
 }
 
-void	run_pipes(t_data *data, int fd_in, char **envp)
+void	fork_and_exec_middle_cmd(t_data *data, int fd_in, char **envp)
 {
 	int fd_new_pipe[2];
 	int pid;
@@ -162,15 +182,34 @@ void	run_pipes(t_data *data, int fd_in, char **envp)
 		close(fd_in);
 		close(fd_new_pipe[OUT]);
 		if (data->atual_command == data->nbr_of_commands - 2)
-			execute_last_command(data, fd_new_pipe[0], envp);
-		run_pipes(data, fd_new_pipe[0], envp);
+			exec_last_command(data, fd_new_pipe[0], envp);
+		fork_and_exec_middle_cmd(data, fd_new_pipe[0], envp);
 	}
 }
 
-void	execute_last_command(t_data *data, int fd_in, char **envp)
+void	exec_last_command(t_data *data, int fd_in, char **envp)
 {
 	dup2(fd_in, STDIN_FILENO);
 	dup2(data->fd_outfile, STDOUT_FILENO);
 	execute_command(data, data->command[data->nbr_of_commands - 1], envp);
 	exit (127);
+}
+
+void command_not_found_message(char *command)
+{
+	dup2(STDERR_FILENO, STDOUT_FILENO);
+	ft_printf(GREY"pipex: %s : command not found\n"RESET, command);
+}
+
+char **split_command(char *command)
+{
+	if (ft_strnstr(command, "awk", ft_strlen("awk")))
+		error("Working on progress...");
+	else
+		return (ft_split(command, ' '));
+}
+
+void read_here_doc(t_data *data, char *here_doc, char *limiter, char **envp)
+{
+	error("Working on progress...");
 }
