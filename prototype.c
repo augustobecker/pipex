@@ -34,7 +34,7 @@ typedef struct s_data
 void	initialize(t_data *data, int argc, char **argv, char **envp);
 void	read_here_doc(t_data *data, char *here_doc, char *limiter, char **envp);
 void	init_files(t_data *data, char *infile, char *outfile);
-void	find_paths_to_command(t_data *data, char **envp)
+void	find_paths_to_command(t_data *data, char **envp);
 void	init_commands(t_data *data, char **argv);
 char	**split_command(char *command);
 void	execute_command(t_data *data, char **cmd_and_flags, char **envp);
@@ -152,6 +152,7 @@ int	fork_and_exec_first_cmd(t_data *data, char **envp)
 		dup2(data->fd_infile, STDIN_FILENO);
 		dup2(fd_pipe[OUT], STDOUT_FILENO);
 		execute_command(data, data->command[0], envp);
+		return (0);
 	}
 	else
 	{
@@ -199,12 +200,16 @@ void command_not_found_message(char *command)
 {
 	dup2(STDERR_FILENO, STDOUT_FILENO);
 	ft_printf(GREY"pipex: %s : command not found\n"RESET, command);
+	exit (0);
 }
 
 char **split_command(char *command)
 {
 	if (ft_strnstr(command, "awk", ft_strlen("awk")))
+	{
 		error("Working on progress...");
+		return (NULL);
+	}
 	else
 		return (ft_split(command, ' '));
 }
