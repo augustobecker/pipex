@@ -12,7 +12,7 @@
 
 #include "../libraries/pipex.h"
 
-void	initialize(t_data *data, int argc, char **argv, char **envp)
+void	initialize(t_data *data, int argc, char **argv, char **envp);
 void	init_files(t_pipex *pipex, char *infile, char *outfile);
 void	find_paths(t_pipex *pipex, char **envp);
 void	init_commands(t_pipex *pipex, char *first_cmd, char *secnd_cmd);
