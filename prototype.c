@@ -10,7 +10,9 @@
 # define RED				"\033[0;31m"
 # define RESET 				"\033[0m"
 
-# define PLACE_HOLDER 			16
+# define PLACE_HOLDER 		16
+# define FILE_HEREDOC		"this-file-name-should-simply-not-exist"
+# define FILE_HEREDOC_EXTRA	"ok-lets-try-another-name"	
 
 # define IN 				0
 # define OUT	 			1
@@ -28,13 +30,13 @@ typedef struct s_data
 	int 	atual_command;
 	int		nbr_of_commands;
 	t_bool	here_doc;
+	char	*doc_file;
 	char 	***command;
 	char	**paths;
 	char	*limiter;
 }	t_data;
 
 void	initialize(t_data *data, int argc, char **argv, char **envp);
-void	read_here_doc(t_data *data, char *here_doc, char *limiter, char **envp);
 void	init_files(t_data *data, char *infile, char *outfile);
 void	find_paths_to_command(t_data *data, char **envp);
 void	init_commands(t_data *data, char **argv);
@@ -46,11 +48,15 @@ void	exec_last_command(t_data *data, int fd_in, char **envp);
 void	command_not_found_message(char *command);
 void	error(char *message);
 
+void		read_here_doc(t_data *data, char *limiter, char **envp);
+
 int change_spaces_to_place_holder(char **comand, int start);
 void change_ocurrences(char **str, char old_c, char new_c);
 
 void treat_spaces_inside_the_command(char **command);
 int change_ocurrences_until_limiter(char **str, char old_c, char new_c, char limiter);
+
+void init_here_doc_infile(t_data *data, char *outfile);
 
 int main(int argc, char **argv, char **envp)
 {
@@ -71,8 +77,14 @@ void initialize(t_data *data, int argc, char **argv, char **envp)
 	if (argc < 5)
 		error("Some arguments are missing");
 	if (!ft_strncmp(argv[1], "here_doc", ft_strlen("here_doc")))
-		read_here_doc(data, argv[1], argv[2], envp);
-	data->nbr_of_commands = argc - 3;
+	{
+		data->here_doc = true;
+		init_here_doc_infile(data, argv[argc - 1]);
+		read_here_doc(data, argv[2], envp);
+		data->nbr_of_commands = argc - 4;
+	}
+	else
+		data->nbr_of_commands = argc - 3;
 	init_files(data, argv[1], argv[argc - 1]);
 	find_paths_to_command(data, envp);
 	init_commands(data, argv);
@@ -88,6 +100,9 @@ void init_files(t_data *data, char *infile, char *outfile)
 {
 	if (data->here_doc == true)
 	{
+		data->fd_infile = open(data->doc_file, O_RDONLY);
+		if (data->fd_outfile == -1)
+			error("infile: something unexpected happened");
 		data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_APPEND, 0777);
 		if (data->fd_outfile == -1)
 			error("outfile: something unexpected happened");
@@ -120,7 +135,10 @@ void	init_commands(t_data *data, char **argv)
 	int i;
 
 	i = 0;
-	arg = 2;
+	if (data->here_doc == true)
+		arg = 3;
+	else
+		arg = 2;
 	data->command = malloc(sizeof(char ***) * (data->nbr_of_commands + 1));
 	while (i < data->nbr_of_commands)
 	{
@@ -171,6 +189,9 @@ int	fork_and_exec_first_cmd(t_data *data, char **envp)
 	{
 		waitpid(pid, NULL, 0);
 		close(fd_pipe[1]);
+		close(data->fd_infile);
+		if (data->here_doc == true)
+			unlink(data->doc_file);
 		return (fd_pipe[IN]);
 	}
 }
@@ -241,11 +262,6 @@ char **split_command(char *command)
 	return (array_command);
 }
 
-void read_here_doc(t_data *data, char *here_doc, char *limiter, char **envp)
-{
-	error("Working on progress...");
-}
-
 void treat_spaces_inside_the_command(char **command)
 {
 	int i;
@@ -287,5 +303,41 @@ void change_ocurrences(char **str, char old_c, char new_c)
 		if (str[0][i] == old_c)
 			str[0][i] = new_c;
 		i++;
+	}
+}
+
+void	read_here_doc(t_data *data, char *limiter, char **envp)
+{
+	char	*buf;
+	int		rd;
+
+	buf = malloc(sizeof(char) * (BUFFER_SIZE + 1));
+	dup2(data->fd_infile, STDOUT_FILENO);
+	rd = 1;
+	while (rd > 0)
+	{
+		rd = read(STDIN_FILENO, buf, BUFFER_SIZE);
+		buf[rd] = '\0';
+		if (ft_strnstr(buf, limiter, ft_strlen(limiter)))
+			break;
+		ft_printf("%s",buf);
+	}
+	free(buf);
+	close(data->fd_infile);
+}
+
+void init_here_doc_infile(t_data *data, char *outfile)
+{
+	if (ft_strncmp(outfile, FILE_HEREDOC, ft_strlen(outfile)))
+	{
+		data->fd_infile = \
+		open(FILE_HEREDOC, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+		data->doc_file = ft_strdup(FILE_HEREDOC);
+	}
+	else
+	{
+		data->fd_infile = \
+		open(FILE_HEREDOC_EXTRA, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+		data->doc_file = ft_strdup(FILE_HEREDOC_EXTRA);
 	}
 }
