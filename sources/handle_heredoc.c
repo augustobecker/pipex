@@ -6,14 +6,14 @@
 /*   By: acesar-l <acesar-l@student.42sp.org.br>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/01 16:37:25 by acesar-l          #+#    #+#             */
-/*   Updated: 2022/08/01 16:38:58 by acesar-l         ###   ########.fr       */
+/*   Updated: 2022/08/01 19:11:43 by acesar-l         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "../libraries/pipex.h"
+#include "../includes/pipex.h"
 
 void	init_heredoc_file(t_data *data, char *outfile);
-void	read_heredoc(t_data *data, char *limiter, char **envp);
+void	read_heredoc(t_data *data, char *limiter);
 
 void	init_heredoc_file(t_data *data, char *outfile)
 {
@@ -31,7 +31,7 @@ void	init_heredoc_file(t_data *data, char *outfile)
 	}
 }
 
-void	read_heredoc(t_data *data, char *limiter, char **envp)
+void	read_heredoc(t_data *data, char *limiter)
 {
 	char	*buf;
 	int	rd;
@@ -50,3 +50,4 @@ void	read_heredoc(t_data *data, char *limiter, char **envp)
 	free(buf);
 	close(data->fd_infile);
 }
+
