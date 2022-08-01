@@ -3,30 +3,27 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 
-#define BUFFER_SIZE 10
-
 int main(int argc, char **argv, char **envp)
 {
 	char *limiter;
 	char *buf;
-	char *temp_buf;
 	int rd;
-	int doc_size;
+	int fd;
 
 	buf = malloc(sizeof(char) * (BUFFER_SIZE + 1));
+	fd = open("outfile", O_WRONLY | O_CREAT | O_TRUNC, 0777);
 	limiter = ft_strdup(argv[1]);
-	rd = read(STDIN_FILENO, buf, BUFFER_SIZE);
-	buf[rd] = '\0';
-	temp_buf = ft_strdup("");
+	rd = 1;
+	dup2(fd, STDOUT_FILENO);
 	while (rd > 0)
 	{
-		temp_buf = ft_strjoin(temp_buf, buf);
-		if (ft_strnstr(temp_buf, limiter, ft_strlen(temp_buf)))
-            break ;
-        rd = read(STDIN_FILENO, buf, BUFFER_SIZE);
+		rd = read(STDIN_FILENO, buf, BUFFER_SIZE);
 		buf[rd] = '\0';
+		if (ft_strnstr(buf, limiter, ft_strlen(limiter)))
+			break;
+		ft_printf("%s",buf);
 	}
-	doc_size = ft_find_limiter(temp_buf, limiter, ft_strlen(temp_buf));
-	temp_buf = ft_substr(temp_buf, 0, doc_size);
-	ft_printf("%s\n", temp_buf);
+	free(limiter);
+	free(buf);
+	close(fd);
 }
