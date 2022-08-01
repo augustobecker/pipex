@@ -13,14 +13,14 @@
 #include "../libraries/pipex.h"
 
 void	execute(t_data *data, char **cmd_and_flags, char **envp);
-int		fork_and_exec_first_cmd(t_data *data, char **envp);
+int	fork_and_exec_first_cmd(t_data *data, char **envp);
 void	fork_and_exec_middle_cmd(t_data *data, int fd_in, char **envp);
 void	exec_last_command(t_data *data, int fd_in, char **envp);
 
 int	main(int argc, char **argv, char **envp)
 {
 	t_data	*data;
-	int		fd_pipe_input;
+	int	fd_pipe_input;
 
 	data = malloc(sizeof(t_data));
 	initialize(data, argc, argv, envp);
@@ -34,7 +34,7 @@ int	main(int argc, char **argv, char **envp)
 void	execute(t_data *data, char **cmd_and_flags, char **envp)
 {
 	char	*command;
-	int		i;
+	int	i;
 
 	i = 0;
 	if (ft_count_occurrences(cmd_and_flags[0], '/') > 1)
