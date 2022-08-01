@@ -46,8 +46,11 @@ void	exec_last_command(t_data *data, int fd_in, char **envp);
 void	command_not_found_message(char *command);
 void	error(char *message);
 
-int change_spaces_to_place_holder(char *comand, int start);
-void change_ocurrences(char **str, char old_char, char new_char);
+int change_spaces_to_place_holder(char **comand, int start);
+void change_ocurrences(char **str, char old_c, char new_c);
+
+void treat_spaces_inside_the_command(char **command);
+int change_ocurrences_until_limiter(char **str, char old_c, char new_c, char limiter);
 
 int main(int argc, char **argv, char **envp)
 {
@@ -215,37 +218,27 @@ void command_not_found_message(char *command)
 
 char **split_command(char *command)
 {
-	char 	**command_and_flags;
-	char	*temp_cmd;
+	char 	**array_command;
+	char 	*full_command;
 	int		i;
 
 	i = 0;
 	if (ft_strnstr(command, "awk", ft_strlen("awk")) 
 	|| ft_strnstr(command, "sed", ft_strlen("sed")))
 	{
-		temp_cmd = ft_strdup(command);
-		while (temp_cmd[i] != '\0')
-		{
-			if(temp_cmd[i] == '\'' || temp_cmd[i] == '{')
-			{
-				ft_printf("Antes da change space = [%d] = [%c]", i, temp_cmd);
-				i += change_spaces_to_place_holder(command, i);
-				ft_printf("Depois da change space = [%d] = [%d]", i, temp_cmd);
-			}
-			//ft_printf("[%d] -  [%d]\n", temp_cmd[i], i);
-			i++;
-		}
+		full_command = ft_strdup(command);
+		treat_spaces_inside_the_command(&full_command);
 	}
 	else
 		return (ft_split(command, ' '));
-	i = 0;
-	command_and_flags = ft_split(temp_cmd, ' ');
-	while (command_and_flags[i])
+	array_command = ft_split(full_command, ' ');
+	while (array_command[i])
 	{
-		change_ocurrences(&command_and_flags[i], PLACE_HOLDER, ' ');
-		ft_printf("%s\n", command_and_flags[i]);
+		change_ocurrences(&array_command[i], PLACE_HOLDER, ' ');
+		array_command[i] = ft_strtrim(array_command[i], "\'");
+		i++;
 	}
-	return (command_and_flags);
+	return (array_command);
 }
 
 void read_here_doc(t_data *data, char *here_doc, char *limiter, char **envp)
@@ -253,35 +246,46 @@ void read_here_doc(t_data *data, char *here_doc, char *limiter, char **envp)
 	error("Working on progress...");
 }
 
-int change_spaces_to_place_holder(char *command, int start)
-{
-	int		i;
-	int 	quotes;
-
-	i = start - 1;
-	quotes = 0;
-	while(command[i] != '}' || (command[i] != '\'' && quotes < 2))
-	{
-		if (command[i] == ' ')
-			command[i] = PLACE_HOLDER;
-		if (command[i] != '\'')
-			quotes++;
-		i++;
-		if (command[i] == '\0')
-			return (i);
-	}
-	return (i - 1);
-}
-
-void change_ocurrences(char **str, char old_char, char new_char)
+void treat_spaces_inside_the_command(char **command)
 {
 	int i;
 
 	i = 0;
-	while (*str[i + 1])
+	while (command[0][i])
 	{
-		if (*str[i] == old_char)
-			*str[i] = new_char;
+		if (command[0][i] == '\'')
+		{
+			i++;
+			while (command[0][i] != '\'')
+			{
+				if (command[0][i] == ' ')
+					command[0][i] = PLACE_HOLDER;
+				i++;
+			}
+		}
+		if (command[0][i] == '{')
+		{
+			while (command[0][i] != '}')
+			{
+				if (command[0][i] == ' ')
+					command[0][i] = PLACE_HOLDER;
+				i++;
+			}
+		}
+		i++;
+	}
+
+}
+
+void change_ocurrences(char **str, char old_c, char new_c)
+{
+	int i;
+
+	i = 0;
+	while (str[0][i])
+	{
+		if (str[0][i] == old_c)
+			str[0][i] = new_c;
 		i++;
 	}
 }
