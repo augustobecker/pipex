@@ -6,11 +6,11 @@
 /*   By: acesar-l <acesar-l@student.42sp.org.br>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/01 16:20:09 by acesar-l          #+#    #+#             */
-/*   Updated: 2022/08/01 16:28:37 by acesar-l         ###   ########.fr       */
+/*   Updated: 2022/08/01 19:06:28 by acesar-l         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "../libraries/pipex.h"
+#include "../includes/pipex.h"
 
 void	error(char *message);
 void	command_not_found_message(char *command);
