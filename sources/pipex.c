@@ -6,21 +6,21 @@
 /*   By: acesar-l <acesar-l@student.42sp.org.br>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/01 16:14:01 by acesar-l          #+#    #+#             */
-/*   Updated: 2022/08/01 16:16:59 by acesar-l         ###   ########.fr       */
+/*   Updated: 2022/08/01 19:06:27 by acesar-l         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "../libraries/pipex.h"
+#include "../includes/pipex.h"
 
 void	execute(t_data *data, char **cmd_and_flags, char **envp);
-int	fork_and_exec_first_cmd(t_data *data, char **envp);
+int		fork_and_exec_first_cmd(t_data *data, char **envp);
 void	fork_and_exec_middle_cmd(t_data *data, int fd_in, char **envp);
 void	exec_last_command(t_data *data, int fd_in, char **envp);
 
 int	main(int argc, char **argv, char **envp)
 {
 	t_data	*data;
-	int	fd_pipe_input;
+	int		fd_pipe_input;
 
 	data = malloc(sizeof(t_data));
 	initialize(data, argc, argv, envp);
@@ -34,7 +34,7 @@ int	main(int argc, char **argv, char **envp)
 void	execute(t_data *data, char **cmd_and_flags, char **envp)
 {
 	char	*command;
-	int	i;
+	int		i;
 
 	i = 0;
 	if (ft_count_occurrences(cmd_and_flags[0], '/') > 1)
