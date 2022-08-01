@@ -6,11 +6,11 @@
 /*   By: acesar-l <acesar-l@student.42sp.org.br>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/01 16:30:56 by acesar-l          #+#    #+#             */
-/*   Updated: 2022/08/01 16:35:51 by acesar-l         ###   ########.fr       */
+/*   Updated: 2022/08/01 23:40:25 by acesar-l         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "../libraries/pipex.h"
+#include "../includes/pipex.h"
 
 void	initialize(t_data *data, int argc, char **argv, char **envp);
 void	init_files(t_data *data, char *infile, char *outfile);
@@ -28,7 +28,7 @@ Ex: ./pipex <infile> <cmd1> <cmd2> <...> <outfile>\n\
 	{
 		data->here_doc = true;
 		init_heredoc_file(data, argv[argc - 1]);
-		read_heredoc(data, argv[2], envp);
+		read_heredoc(data, argv[2]);
 		data->nbr_of_commands = argc - 4;
 	}
 	else
@@ -53,7 +53,7 @@ void	init_files(t_data *data, char *infile, char *outfile)
 	{
 		data->fd_infile = open(infile, O_RDONLY);
 		if (data->fd_infile == -1)
-			ft_printf(GREY"pipex: %s: No such file or directory\n", infile);
+			ft_printf(GREY"pipex: %s: No such file or directory\n"RESET, infile);
 		data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0777);
 		if (data->fd_outfile == -1)
 			error(GREY"outfile: something unexpected happened\n"RESET);
@@ -106,7 +106,7 @@ char	**split_command(char *command)
 	{
 		full_command = ft_strdup(command);
 		place_holder = define_a_not_used_place_holder(full_command);
-		treat_spaces_in_command(&full_command, place_holder);
+		treat_spaces_in_command(&full_command, place_holder, 0);
 	}
 	else
 		return (ft_split(command, ' '));
