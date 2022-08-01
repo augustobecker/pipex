@@ -34,7 +34,7 @@ void	init_heredoc_file(t_data *data, char *outfile)
 void	read_heredoc(t_data *data, char *limiter, char **envp)
 {
 	char	*buf;
-	int		rd;
+	int	rd;
 
 	buf = malloc(sizeof(char) * (BUFFER_SIZE + 1));
 	dup2(data->fd_infile, STDOUT_FILENO);
