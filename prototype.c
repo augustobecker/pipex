@@ -10,7 +10,7 @@
 # define RED				"\033[0;31m"
 # define RESET 				"\033[0m"
 
-# define PLACE_HOLDER 		'x'
+# define PLACE_HOLDER 			16
 
 # define IN 				0
 # define OUT	 			1
