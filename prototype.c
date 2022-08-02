@@ -1,5 +1,5 @@
 #include <unistd.h>
-#include "../../prototype/libraries/Libft/libft.h"
+#include "../github/includes/libft.h"
 # include <unistd.h>
 # include <stdlib.h>
 # include <sys/wait.h>
@@ -111,10 +111,10 @@ void init_files(t_data *data, char *infile, char *outfile)
 	{
 		data->fd_infile = open(infile, O_RDONLY);
 		if (data->fd_infile == -1)
-			ft_printf(GREY"pipex: %s: No such file or directory", infile);
-		data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+			ft_printf(GREY"pipex: %s: No such file or directory\n"RESET, infile);
+		data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 		if (data->fd_outfile == -1)
-			error("outfile: something unexpected happened");
+			error("No such file or directory");
 	}
 }
 
@@ -244,14 +244,8 @@ char **split_command(char *command)
 	int		i;
 
 	i = 0;
-	if (ft_strnstr(command, "awk", ft_strlen("awk")) 
-	|| ft_strnstr(command, "sed", ft_strlen("sed")))
-	{
-		full_command = ft_strdup(command);
-		treat_spaces_inside_the_command(&full_command);
-	}
-	else
-		return (ft_split(command, ' '));
+	full_command = ft_strdup(command);
+	treat_spaces_inside_the_command(&full_command);
 	array_command = ft_split(full_command, ' ');
 	while (array_command[i])
 	{
@@ -279,9 +273,10 @@ void treat_spaces_inside_the_command(char **command)
 				i++;
 			}
 		}
-		if (command[0][i] == '{')
+		if (command[0][i] == '\"')
 		{
-			while (command[0][i] != '}')
+			i++;
+			while (command[0][i] != '\"')
 			{
 				if (command[0][i] == ' ')
 					command[0][i] = PLACE_HOLDER;
