@@ -10,9 +10,7 @@
 
 void	initialize(t_data *data, int argc, char **argv, char **envp);
 void	init_data(t_data *data, int argc);
-t_bool	is_here_doc_present(t_data *data, int argc, char **argv);
 void	check_for_null_argv(t_data *data, int argc, char **argv);
-void	init_here_doc(t_data *data, char *limiter, char *outfile, char **envp);
 void	init_files(t_data *data, char *infile, char *outfile);
 void	find_paths_to_command(t_data *data, char **envp);
 void	init_commands(t_data *data, int argc, char **argv);
@@ -22,10 +20,9 @@ void	execute_not_used_cmds(t_data *data, int command, char **envp);
 void	execute(t_data *data, char **cmd_and_flags, char **envp);
 int		fork_and_exec_first_cmd(t_data *data, char **envp);
 void	fork_and_exec_cmd(t_data *data, int fd_in, char **envp);
-void	exec_last_command(t_data *data, int fd_in, char **envp);
+
 void	command_not_found_message(char *command);
 void	error(t_data *data, char *message, int exit_code);
-int		change_spaces_to_place_holder(char **comand, int start);
 void 	change_ocurrences(char **str, char old_c, char new_c);
 void 	treat_spaces_inside_the_command(char **command);
 int 	change_ocurrences_until_limiter(char **str, char old_c, char new_c, char limiter);
@@ -36,10 +33,8 @@ char	*ft_substr_n_free(char **s, unsigned int start, size_t len);
 char	*ft_strtrim_n_free(char **s1, char const *set);
 
 // Colocar na Libft
-void	free_str_array(char **array);
 void	free_commands(t_data *data);
 
-// Checar permissões logo de cara
 
 void free_data_and_exit(t_data *data, int exit_code)
 {
@@ -59,9 +54,13 @@ int main(int argc, char **argv, char **envp)
 
 	data = malloc(sizeof(t_data));
 	initialize(data, argc, argv, envp);
-	fd_pipe_input = fork_and_exec_first_cmd(data, envp);
+	fd_pipe_input = fork_and_exec_first_cmd(data, envp); 
 	fork_and_exec_cmd(data, fd_pipe_input, envp);
-	free_data_and_exit(data, 1);
+	close(data->fd_infile);
+	close(data->fd_outfile);
+	if (data->not_used_cmds == true || data->invalid_infile == true)
+		unlink(TEMP_FILE);
+	free_data_and_exit(data, 0);
 	return (0);
 }
 
@@ -70,14 +69,10 @@ void initialize(t_data *data, int argc, char **argv, char **envp)
 	int i;
 
 	i = 0;
-	if (argc < 5)
-		error(data, "Some arguments are missing", 1);
 	init_data(data, argc);
-	data->here_doc.is_present = is_here_doc_present(data, argc, argv);
+	if (argc < 5)
+		error(data, "Missing arguments", 1);
 	check_for_null_argv(data, argc, argv);
-	if ((data->here_doc.is_present == true) && \
-	(data->here_doc.is_necessary == true))
-		init_here_doc(data, argv[2], argv[argc - 1], envp);
 	count_not_used_cmds(data, argc, argv, envp);
 	init_files(data, argv[1], argv[argc - 1]);
 	find_paths_to_command(data, envp);
@@ -87,11 +82,11 @@ void initialize(t_data *data, int argc, char **argv, char **envp)
 	{
 		while (data->actual_command < data->not_used_cmds)
 			execute_not_used_cmds(data, i, envp);
-		unlink(TEMP_FILE);
 	}
 	if (argv[argc - 2][0] == 0)
 		error(data, "pipex: : command not found", 127);
 }
+
 
 void init_data(t_data *data, int argc)
 {
@@ -100,21 +95,7 @@ void init_data(t_data *data, int argc)
 	data->not_used_cmds = 0;
 	data->cmds_alloc = false;
 	data->null_cmd = false;
-	data->here_doc.is_present = false;
-	data->here_doc.is_necessary = false;
-}
-
-t_bool is_here_doc_present(t_data *data, int argc, char **argv)
-{
-	if (!ft_strncmp(argv[1], "here_doc", ft_strlen("here_doc")))
-	{
-		if (argc < 6)
-			error(data, "Some arguments are missing", 1);
-		data->nbr_of_commands = argc - 3;
-		return (true);
-	}
-	else
-		return (false);
+	data->invalid_infile = false;
 }
 
 void	check_for_null_argv(t_data *data, int argc, char **argv)
@@ -124,45 +105,16 @@ void	check_for_null_argv(t_data *data, int argc, char **argv)
 	i = 2;
 	if (argv[argc - 1][0] == 0)
 		error(data, "pipex: : No such file or directory", 1);
-	if (data->here_doc.is_present == true)
-		i++;
 	while (i < (argc - 1))
 	{
 		if (argv[i][0] == 0)
 		{
 			ft_printf(GREY"pipex: : command not found\n"RESET);
 			data->nbr_of_commands--;
-			data->here_doc.is_necessary = false;
-			data->fd_infile = -1;
 			data->null_cmd = true;
 		}
 		i++;
 	}
-}
-
-void init_here_doc(t_data *data, char *limiter, char *outfile, char **envp)
-{
-	char	*buf;
-	int		rd;
-
-	data->fd_infile = open(HEREDOC_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	if (data->fd_infile == -1)
-		error(data, "pipex : couldn't read here_doc", 1);
-	buf = malloc(sizeof(char) * (BUFFER_SIZE + 1));
-	if (!buf)
-		error(data, "pipex : couldn't alloc here_doc", 1);
-	dup2(data->fd_infile, STDOUT_FILENO);
-	rd = 1;
-	while (rd > 0)
-	{
-		rd = read(STDIN_FILENO, buf, BUFFER_SIZE);
-		buf[rd] = '\0';
-		if (ft_strnstr(buf, limiter, ft_strlen(limiter)))
-			break;
-		ft_printf("%s",buf);
-	}
-	free(buf);
-	close(data->fd_infile);
 }
 
 void count_not_used_cmds(t_data *data, int argc, char **argv, char **envp)
@@ -172,8 +124,6 @@ void count_not_used_cmds(t_data *data, int argc, char **argv, char **envp)
 
 	i = argc - 2;
 	argv_first_cmd = 2;
-	if (data->here_doc.is_present == true)
-		argv_first_cmd = 3;
 	while (i >= argv_first_cmd)
 	{
 		if (argv[i][0] == 0)
@@ -190,33 +140,21 @@ void count_not_used_cmds(t_data *data, int argc, char **argv, char **envp)
 
 void init_files(t_data *data, char *infile, char *outfile)
 {
-	if (data->here_doc.is_present == true)
+	data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (data->fd_outfile == -1)
+		error(data, "No such file or directory", 1);
+	data->fd_infile = open(infile, O_RDONLY);
+	if (data->fd_infile == -1)
 	{
-		if (data->here_doc.is_necessary == true)
-		{
-			close(data->fd_infile);
-			data->fd_infile = open(HEREDOC_FILE, O_RDONLY);
-			if (data->fd_infile == -1)
-				error(data, "infile: something unexpected happened", 1);
-		}
-		data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_APPEND, 0777);
-		if (data->fd_outfile == -1)
-			error(data, "outfile: something unexpected happened", 1);
+		ft_printf(GREY"pipex: %s: No such file or directory\n"RESET,\
+		 infile);
+		data->invalid_infile = true;
 	}
-	else
+	if (data->not_used_cmds || data->invalid_infile == true)
 	{
-		data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		if (data->fd_outfile == -1)
-			error(data, "No such file or directory", 1);
-		data->fd_infile = open(infile, O_RDONLY);
-		if (data->fd_infile == -1)
-			ft_printf(GREY"pipex: %s: \
-No such file or directory\n"RESET, infile);
-		if (data->not_used_cmds)
-		{
-			data->fd_temp_file = open(TEMP_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-			data->fd_infile = open(TEMP_FILE, O_RDONLY | O_CREAT | O_TRUNC, 0644);
-		}
+		data->fd_temp_file = \
+		open(TEMP_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		data->fd_infile = open(TEMP_FILE, O_RDONLY | O_CREAT | O_TRUNC, 0644);
 	}
 }
 
@@ -238,8 +176,6 @@ void	init_commands(t_data *data, int argc, char **argv)
 
 	i = 0;
 	arg = 2;
-	if (data->here_doc.is_present == true)
-		arg++;
 	data->command = malloc(sizeof(char ***) * (data->nbr_of_commands + 1));
 	if (!data->command)
 		error(data, "pipex: Couldn't alloc the commands", 1);
@@ -336,7 +272,10 @@ int	fork_and_exec_first_cmd(t_data *data, char **envp)
 		if (data->null_cmd == true)
 			free_data_and_exit(data, 1);
 		dup2(data->fd_infile, STDIN_FILENO);
-		dup2(fd_pipe[OUT], STDOUT_FILENO);
+		if (data->invalid_infile == true)
+			dup2(data->fd_temp_file, STDOUT_FILENO);
+		else
+			dup2(fd_pipe[OUT], STDOUT_FILENO);
 		execute(data, data->command[data->actual_command], envp);
 		return (0);
 	}
@@ -344,10 +283,8 @@ int	fork_and_exec_first_cmd(t_data *data, char **envp)
 	{
 		waitpid(pid, NULL, 0);
 		close(fd_pipe[1]);
-		if (data->fd_infile != -1)
-			close(data->fd_infile);
-		if (data->here_doc.is_present == true)
-			unlink(HEREDOC_FILE);
+		if (data->null_cmd == false)
+			data->actual_command++;
 		return (fd_pipe[IN]);
 	}
 }
@@ -362,7 +299,10 @@ void	fork_and_exec_cmd(t_data *data, int fd_in, char **envp)
 	if (pid == 0)
 	{
 		close(fd_new_pipe[IN]);
-		dup2(fd_in, STDIN_FILENO);
+		if (data->invalid_infile == true && data->actual_command == 0)
+			dup2(data->fd_infile, STDIN_FILENO);
+		else
+			dup2(fd_in, STDIN_FILENO);
 		if (data->actual_command == data->nbr_of_commands - 1)
 			dup2(data->fd_outfile, STDOUT_FILENO);
 		else
@@ -375,8 +315,7 @@ void	fork_and_exec_cmd(t_data *data, int fd_in, char **envp)
 		waitpid(pid, NULL, 0);
 		close(fd_in);
 		close(fd_new_pipe[OUT]);
-		data->actual_command++;
-		if (data->actual_command == data->nbr_of_commands)
+		if (data->actual_command++ == data->nbr_of_commands)
 			return ;
 		fork_and_exec_cmd(data, fd_new_pipe[0], envp);
 	}
@@ -401,7 +340,6 @@ void treat_spaces_inside_the_command(char **command)
 			i += change_ocurrences_til_limiter(command, ' ', PLACE_HOLDER, '\"', i + 1);
 		i++;
 	}
-
 }
 
 void change_ocurrences(char **str, char old_c, char new_c)
@@ -428,7 +366,7 @@ int change_ocurrences_til_limiter(char **str, char old_c, char new_c, char limit
 			str[0][i] = new_c;
 		i++;
 	}
-	return (i - start);
+	return (i - start + 1);
 }
 
 void	free_commands(t_data *data)
@@ -442,16 +380,6 @@ void	free_commands(t_data *data)
 		cmds++;
 	}
 	free(data->command);
-}
-
-void	free_str_array(char **array)
-{
-	int	string;
-
-	string = 0;
-	while (array[string])
-		free(array[string++]);
-	free(array);
 }
 
 char	*ft_strappend(const char *s1, char **s2)
