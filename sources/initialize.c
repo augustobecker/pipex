@@ -5,117 +5,105 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: acesar-l <acesar-l@student.42sp.org.br>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2022/08/01 16:30:56 by acesar-l          #+#    #+#             */
-/*   Updated: 2022/08/01 23:40:25 by acesar-l         ###   ########.fr       */
+/*   Created: 2022/08/20 02:21:24 by acesar-l          #+#    #+#             */
+/*   Updated: 2022/08/20 08:52:05 by acesar-l         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../includes/pipex.h"
 
 void	initialize(t_data *data, int argc, char **argv, char **envp);
+void	init_data(t_data *data, int argc);
+void	check_for_null_argv(t_data *data, int argc, char **argv);
+void	count_not_used_cmds(t_data *data, int argc, char **argv);
 void	init_files(t_data *data, char *infile, char *outfile);
-void	find_paths_to_command(t_data *data, char **envp);
-void	init_commands(t_data *data, char **argv);
-char	**split_command(char *command);
 
 void	initialize(t_data *data, int argc, char **argv, char **envp)
 {
+	init_data(data, argc);
 	if (argc < 5)
-		error(GREY"pipex: Error : Bad argument\n\
-Ex: ./pipex <infile> <cmd1> <cmd2> <...> <outfile>\n\
-  : ./pipex \"here_doc\" <LIMITER> <cmd> <cmd1> <...> <file>\n"RESET);
-	if (!ft_strncmp(argv[1], "here_doc", ft_strlen("here_doc")))
-	{
-		data->here_doc = true;
-		init_heredoc_file(data, argv[argc - 1]);
-		read_heredoc(data, argv[2]);
-		data->nbr_of_commands = argc - 4;
-	}
-	else
-		data->nbr_of_commands = argc - 3;
+		error(data, "Missing arguments", 1);
+	check_for_null_argv(data, argc, argv);
+	count_not_used_cmds(data, argc, argv);
 	init_files(data, argv[1], argv[argc - 1]);
 	find_paths_to_command(data, envp);
-	init_commands(data, argv);
+	init_commands(data, argc, argv);
+	data->cmds_alloc = true;
+	if (data->not_used_cmds)
+	{
+		while (data->actual_command < data->not_used_cmds)
+			execute_not_used_cmds(data, envp);
+	}
+	if (argv[argc - 2][0] == 0)
+		error(data, "pipex: : command not found", 127);
+}
+
+void	init_data(t_data *data, int argc)
+{
+	data->actual_command = 0;
+	data->nbr_of_commands = argc - 3;
+	data->not_used_cmds = 0;
+	data->cmds_alloc = false;
+	data->null_cmd = false;
+	data->invalid_infile = false;
+}
+
+void	check_for_null_argv(t_data *data, int argc, char **argv)
+{	
+	int	i;
+
+	i = 2;
+	if (argv[argc - 1][0] == 0)
+		error(data, "pipex: : No such file or directory", 1);
+	while (i < (argc - 1))
+	{
+		if (argv[i][0] == 0)
+		{
+			ft_printf(GREY"pipex: : command not found\n"RESET);
+			data->nbr_of_commands--;
+			data->null_cmd = true;
+		}
+		i++;
+	}
+}
+
+void	count_not_used_cmds(t_data *data, int argc, char **argv)
+{
+	int	i;
+	int	argv_first_cmd;
+
+	i = argc - 2;
+	argv_first_cmd = 2;
+	while (i >= argv_first_cmd)
+	{
+		if (argv[i][0] == 0)
+			break ;
+		i--;
+	}
+	while (i >= argv_first_cmd)
+	{
+		if (argv[i][0] != 0)
+			data->not_used_cmds++;
+		i--;
+	}
 }
 
 void	init_files(t_data *data, char *infile, char *outfile)
 {
-	if (data->here_doc == true)
+	data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (data->fd_outfile == -1)
+		error(data, "No such file or directory", 1);
+	data->fd_infile = open(infile, O_RDONLY);
+	if (data->fd_infile == -1)
 	{
-		data->fd_infile = open(data->doc_file, O_RDONLY);
-		if (data->fd_outfile == -1)
-			error(GREY"infile: something unexpected happened\n"RESET);
-		data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_APPEND, 0777);
-		if (data->fd_outfile == -1)
-			error(GREY"outfile: something unexpected happened\n"RESET);
+		ft_printf(GREY"pipex: %s: No such file or directory\n"RESET, \
+		infile);
+		data->invalid_infile = true;
 	}
-	else
+	if (data->not_used_cmds || data->invalid_infile == true)
 	{
-		data->fd_infile = open(infile, O_RDONLY);
-		if (data->fd_infile == -1)
-			ft_printf(GREY"pipex: %s: No such file or directory\n"RESET, infile);
-		data->fd_outfile = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0777);
-		if (data->fd_outfile == -1)
-			error(GREY"outfile: something unexpected happened\n"RESET);
+		data->fd_temp_file = \
+		open(TEMP_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+		data->fd_infile = open(TEMP_FILE, O_RDONLY | O_CREAT | O_TRUNC, 0644);
 	}
-}
-
-void	find_paths_to_command(t_data *data, char **envp)
-{
-	int		i;
-
-	i = 0;
-	while (!ft_strnstr(envp[i], "PATH=", ft_strlen("PATH=")))
-		i++;
-	data->paths = ft_split(envp[i] + ft_strlen("PATH="), ':');
-	data->paths[0] = ft_substr(data->paths[0], ft_strlen("PATH="), \
-	ft_strlen(data->paths[0]));
-}
-
-void	init_commands(t_data *data, char **argv)
-{
-	int	arg;
-	int	i;
-
-	i = 0;
-	if (data->here_doc == true)
-		arg = 3;
-	else
-		arg = 2;
-	data->command = malloc(sizeof(char ***) * (data->nbr_of_commands + 1));
-	while (i < data->nbr_of_commands)
-	{
-		data->command[i] = split_command(argv[arg]);
-		if (data->command[i][0][0] != '/')
-			data->command[i][0] = ft_strjoin("/", data->command[i][0]);
-		i++;
-		arg++;
-	}
-}
-
-char	**split_command(char *command)
-{
-	char	**array_cmd;
-	char	*full_command;
-	char	place_holder;
-	int		i;
-
-	i = 0;
-	if (ft_strnstr(command, "awk", ft_strlen("awk"))
-		|| ft_strnstr(command, "sed", ft_strlen("sed")))
-	{
-		full_command = ft_strdup(command);
-		place_holder = define_a_not_used_place_holder(full_command);
-		treat_spaces_in_command(&full_command, place_holder, 0);
-	}
-	else
-		return (ft_split(command, ' '));
-	array_cmd = ft_split(full_command, ' ');
-	while (array_cmd[i])
-	{
-		change_ocurrences(&array_cmd[i], place_holder, ' ');
-		array_cmd[i] = ft_strtrim(array_cmd[i], "\'");
-		i++;
-	}
-	return (array_cmd);
 }
