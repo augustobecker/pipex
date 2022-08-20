@@ -5,54 +5,62 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: acesar-l <acesar-l@student.42sp.org.br>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2022/08/01 16:20:09 by acesar-l          #+#    #+#             */
-/*   Updated: 2022/08/01 19:06:28 by acesar-l         ###   ########.fr       */
+/*   Created: 2022/08/20 02:29:53 by acesar-l          #+#    #+#             */
+/*   Updated: 2022/08/20 08:51:48 by acesar-l         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../includes/pipex.h"
 
-void	error(char *message);
-void	command_not_found_message(char *command);
-void	treat_spaces_in_command(char **command, char place_holder, int i);
+void	redirect_input_and_output(int fd_in, int fd_out);
+void	execute_not_used_cmds(t_data *data, char **envp);
+void	treat_spaces_inside_the_command(char **command);
 void	change_ocurrences(char **str, char old_c, char new_c);
-char	define_a_not_used_place_holder(char *str);
+int	change_ocurrences_til_limiter(char **str, char old_c, char new_c, \
+char limiter);
 
-void	error(char *message)
+void	execute_not_used_cmds(t_data *data, char **envp)
 {
-	perror(message);
-	exit (EXIT_FAILURE);
+	int	pid;
+
+	pid = fork();
+	if (pid == 0)
+	{
+		redirect_input_and_output(data->fd_infile, data->fd_temp_file);
+		execute(data, data->command[data->actual_command], envp);
+	}
+	else
+	{
+		waitpid(pid, NULL, 0);
+		data->actual_command++;
+	}
 }
 
-void	command_not_found_message(char *command)
+void	redirect_input_and_output(int fd_in, int fd_out)
 {
-	dup2(STDERR_FILENO, STDOUT_FILENO);
-	ft_printf(GREY"pipex: %s : command not found\n"RESET, command);
-	exit (0);
+	dup2(fd_in, STDIN_FILENO);
+	dup2(fd_out, STDOUT_FILENO);
 }
 
-void	treat_spaces_in_command(char **command, char place_holder, int i)
+void	treat_spaces_inside_the_command(char **command)
 {
+	int	i;
+	char	*ptr;
+
+	i = 0;
 	while (command[0][i])
 	{
 		if (command[0][i] == '\'')
 		{
-			i++;
-			while (command[0][i] != '\'')
-			{
-				if (command[0][i] == ' ')
-					command[0][i] = place_holder;
-				i++;
-			}
+			ptr = &(command[0][i + 1]);
+			i += change_ocurrences_til_limiter(&ptr, ' ', \
+			PLACE_HOLDER, '\'');
 		}
-		if (command[0][i] == '{')
+		if (command[0][i] == '\"')
 		{
-			while (command[0][i] != '}')
-			{
-				if (command[0][i] == ' ')
-					command[0][i] = place_holder;
-				i++;
-			}
+			ptr = &(command[0][i + 1]);
+			i += change_ocurrences_til_limiter(&ptr, ' ', \
+			PLACE_HOLDER, '\"');
 		}
 		i++;
 	}
@@ -71,12 +79,17 @@ void	change_ocurrences(char **str, char old_c, char new_c)
 	}
 }
 
-char	define_a_not_used_place_holder(char *str)
+int	change_ocurrences_til_limiter(char **str, char old_c, char new_c, \
+char limiter)
 {
-	char	place_holder;
+	int	i;
 
-	place_holder = 16;
-	while (ft_count_occurrences(str, place_holder) != 0)
-		place_holder++;
-	return (place_holder);
+	i = 0;
+	while (str[0][i] && str[0][i] != limiter)
+	{
+		if (str[0][i] == old_c)
+			str[0][i] = new_c;
+		i++;
+	}
+	return (i + 1);
 }
