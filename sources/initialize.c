@@ -104,6 +104,6 @@ void	init_files(t_data *data, char *infile, char *outfile)
 	{
 		data->fd_temp_file = \
 		open(TEMP_FILE, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		data->fd_infile = open(TEMP_FILE, O_RDONLY | O_CREAT | O_TRUNC, 0644);
+		data->fd_infile = open(TEMP_INFILE, O_RDONLY | O_CREAT | O_TRUNC, 0644);
 	}
 }
