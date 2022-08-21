@@ -5,6 +5,7 @@
 <p align="center">🚧 Under construction</p>
 
 <p align="center"><a href="https://www.42sp.org.br/" target="_blank"><img src="https://img.shields.io/static/v1?label=&message=SP&color=000&style=for-the-badge&logo=42""></a></p>
+<p align="center"> <strong>115/100</strong> ✅ </p>
 <p align="center"><a href="https://github.com/augustobecker/Pipex/blob/main/README-ptbr.md" target="_blank"><img src="https://img.shields.io/badge/dispon%C3%ADvel%20tamb%C3%A9m%20em-PT--BR-yellow"></a></p>
 
 ## Index
