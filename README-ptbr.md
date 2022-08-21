@@ -3,6 +3,8 @@
 <p align="center">:information_source: Recriando o pipe do Bash</p>
 
 <p align="center"><a href="https://www.42sp.org.br/" target="_blank"><img src="https://img.shields.io/static/v1?label=&message=SP&color=000&style=for-the-badge&logo=42""></a></p>
+<p align="center"><img src="https://user-images.githubusercontent.com/81205527/185808394-0045a614-600a-443d-add8-736951453ce3.png"> </p>
+<p align="center"> <strong>115/100</strong> ✅ </p>
 <p align="center"><a href="https://github.com/augustobecker/ft_printf/blob/main/README.md"><img src="https://img.shields.io/badge/available%20in-EN-blue"></a></p>
 
 ## Índice
