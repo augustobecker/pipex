@@ -1,21 +1,23 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   ft_lstadd_back.c                                   :+:      :+:    :+:   */
+/*   ft_free_str_array.c                                :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: acesar-l <acesar-l@student.42sp.org>       +#+  +:+       +#+        */
+/*   By: acesar-l <acesar-l@student.42sp.org.br>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2021/09/07 15:59:13 by acesar-l          #+#    #+#             */
-/*   Updated: 2021/09/07 15:59:16 by acesar-l         ###   ########.fr       */
+/*   Created: 2022/08/19 08:27:51 by acesar-l          #+#    #+#             */
+/*   Updated: 2022/08/20 09:21:56 by acesar-l         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "../../includes/libft.h"
 
-void	ft_lstadd_back(t_list **lst, t_list *new)
+void	free_str_array(char **array)
 {
-	if (!*lst)
-		*lst = new;
-	else
-		ft_lstlast(*lst)->next = new;
+	int	string;
+
+	string = 0;
+	while (array[string])
+		free(array[string++]);
+	free(array);
 }

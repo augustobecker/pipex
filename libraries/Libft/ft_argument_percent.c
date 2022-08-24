@@ -10,9 +10,9 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "libft.h"
+#include "../../includes/libft.h"
 
-int ft_argument_percent(void)
+int	ft_argument_percent(void)
 {
 	return (write(1, "%", sizeof(char) * 1));
 }

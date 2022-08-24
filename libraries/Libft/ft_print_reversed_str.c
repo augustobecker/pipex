@@ -10,16 +10,16 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "libft.h"
+#include "../../includes/libft.h"
 
-int ft_print_reversed_str(char *str)
+int	ft_print_reversed_str(char *str)
 {
-int	i;
-int	bytes;
+	int	i;
+	int	bytes;
 
-bytes = ft_strlen(str);
-i = bytes - 1;
-while (i >= 0)
-	write(1, &str[i--], sizeof(char) * 1);
-return (bytes);
+	bytes = ft_strlen(str);
+	i = bytes - 1;
+	while (i >= 0)
+		write(1, &str[i--], sizeof(char) * 1);
+	return (bytes);
 }

@@ -10,13 +10,13 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "libft.h"
+#include "../../includes/libft.h"
 
 int	ft_argument_p(unsigned long address)
 {
 	char	*num;
-	int	bytes;
-	int	i;
+	int		bytes;
+	int		i;
 
 	i = 0;
 	if (!address)

@@ -3,19 +3,19 @@
 /*                                                        :::      ::::::::   */
 /*   ft_memchr.c                                        :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: acesar-l <acesar-l@student.42sp.org>       +#+  +:+       +#+        */
+/*   By: acesar-l <acesar-l@student.42sp.org.br>    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/09/07 16:08:19 by acesar-l          #+#    #+#             */
-/*   Updated: 2021/09/15 21:24:20 by acesar-l         ###   ########.fr       */
+/*   Updated: 2022/08/20 09:22:23 by acesar-l         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "libft.h"
+#include "../../includes/libft.h"
 
 void	*ft_memchr(const void *str, int argument, size_t size)
 {
 	unsigned char	*s;
-	size_t		i;
+	size_t			i;
 
 	i = 0;
 	s = (unsigned char *) str;

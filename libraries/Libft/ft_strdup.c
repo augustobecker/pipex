@@ -10,11 +10,11 @@
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "libft.h"
+#include "../../includes/libft.h"
 
 char	*ft_strdup(char *src)
 {
-	int	i;
+	int		i;
 	char	*dup;
 
 	i = 0;
